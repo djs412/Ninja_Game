@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset = "utf-8">
+		<title> Brave New Ninja </title>
+		<script type = "text/javascript" src="js/phaser.min.js"></script>
+		<style>
+			body {
+				font-family: Arial;
+				font-size: 14px;
+			}
+		</style>
+	</head>
+
+<body>
+<script type = "text/javascript">
+var game = new Phaser.Game(800, 600, Phaser.AUTO, "Dave's game", {preload: preload, create: create, update: update, render: render});
+var player;
+var ground;
+var sky;
+var cursors;
+var mountains;
+var blobs;
+var myTimer;
+var d = new Date();
+var b = false;
+var skulls;
+var s;
+var spawner;
+var spawnTimer = 0;
+var skullSpawnTimer = 0;
+var direction = "Right";
+var strike;
+var sword;
+var swords;
+var score = 0;
+
+function preload() {
+	game.load.spritesheet("ninja", "assets/ninja.png", 32, 32);
+    game.load.image("desert", "assets/castleInteriorFloor.png");
+    game.load.image("sky", "assets/castleInterior.png");
+    game.load.spritesheet("skull", "assets/skull.png", 32, 32);
+    game.load.spritesheet("blob", "assets/blob.png", 32, 32);
+    game.load.image("mountains", "assets/castleDoors.png");
+    
+}
+function spawnRandomEnemy(enemies) {
+	Math.floor(Math.random() * 2);
+}
+
+function create() {
+	game.physics.startSystem(Phaser.Physics.ARCADE);
+
+    game.physics.arcade.gravity.y = 200;
+
+    sky = game.add.tileSprite(0, 0, 8800, 600, "sky");
+    
+    mountains = game.add.tileSprite(0, game.world.height - 160, 8800, 64, "mountains");
+    ground = game.add.tileSprite(0, game.world.height - 96, 8800, 128, 'desert');
+    cursors = game.input.keyboard.createCursorKeys();
+    strike = game.input.keyboard.addKey(Phaser.Keyboard.SHIFT);
+
+	player = game.add.sprite(64, game.world.height - 175, "ninja");
+	player.animations.add("Right", [1,2,3,4,5,6,7,8], 8, true);
+	player.animations.add("Left", [9, 10, 11, 12, 13, 14, 15, 16], 8, true);
+	player.animations.add("idleRight", [18,19,20,21,22,21,20,19], 8, true);
+	player.animations.add("idleLeft", [23,24,25,26,27,26,25,24], 5, true);
+	player.animations.add("jumpRight", [1], 1, true);
+	player.animations.add("jumpLeft", [12], 1, true);
+	player.animations.add("strikeRight", [29, 30, 31], 12, true);
+	player.animations.add("strikeLeft", [32,33,34], 12, true);
+	
+    blobs = game.add.group();
+    blobs.enableBody = true;
+    skulls = game.add.group();
+    swords = game.add.group();
+    skulls.enableBody = true;
+    swords.enableBody = true;
+    game.physics.enable([ player, ground, sky, mountains, blobs, skulls, swords], Phaser.Physics.ARCADE);
+
+    player.body.collideWorldBounds = true;
+    player.body.setSize(10,27,10,5);
+
+    ground.body.immovable = true;
+    ground.body.allowGravity = false;
+
+    sky.body.allowGravity = false;
+    mountains.body.allowGravity = false;
+	
+	scoreText = game.add.text(16, 16, "Score: 0", {fontSize: "32px", fill: "orange"});
+}
+
+
+function update() {
+	game.physics.arcade.collide(player, ground);
+	game.physics.arcade.collide(skulls, ground);
+	game.physics.arcade.collide(blobs, ground, resetSpeed);
+
+	ground.body.velocity.x = -25;
+	sky.body.velocity.x = -20;
+	mountains.body.velocity.x = -20;
+
+	if (strike.isDown) {
+		swing();
+		player.animations.play("strike" + direction);
+	}
+	
+    else if (cursors.left.isDown && player.body.touching.down)
+    {
+        player.body.velocity.x = -85;
+        direction = "Left";
+        player.animations.play(direction);
+    }
+    else if (cursors.left.isDown) {
+    	player.body.velocity.x = -75;
+    	direction = "Left";
+    	player.animations.play("jump" + direction);
+    }
+    else if (cursors.right.isDown && player.body.touching.down)
+    {
+        player.body.velocity.x = 85;
+        direction = "Right";
+        player.animations.play(direction);
+    }
+    else if (cursors.right.isDown) {
+    	player.body.velocity.x = 50;
+    	direction = "Right";
+    	player.animations.play("jump" + direction);
+    }
+    else if (player.body.touching.down) {
+    	player.body.velocity.x = 0; 
+    	player.animations.play("idle" + direction);
+    }
+    if (cursors.up.isDown && player.body.touching.down)
+    {
+        player.body.velocity.y -= 120;
+        player.animations.play("jump" + direction);
+        
+    }
+
+	if (cursors.left.isDown === false && cursors.right.isDown === false && strike.isDown) {player.body.velocity.x = 0; swing();}
+
+	if (game.time.now >= spawnTimer) {createBlob();}
+	if (game.time.now >= skullSpawnTimer) {createSkull();}
+
+	game.physics.arcade.overlap(player, blobs, killPlayer, null, this);
+	game.physics.arcade.overlap(player, skulls, killPlayer, null, this);
+	game.physics.arcade.overlap(swords, blobs, killBlob, null, this);
+	game.physics.arcade.overlap(swords, skulls, killSkull, null, this);
+	if (sword != undefined) {sword.kill();}
+	if (score >= 120) {
+		alert("Almost there!");
+		window.location = "forest.html";
+	}
+}
+
+function render() {
+	//game.debug.body(sword);
+	//game.debug.body(s);
+	
+}
+
+function createBlob() {
+	b = blobs.create(game.world.width - 32, game.world.height-200, "blob");
+	b.body.velocity.x = -(Math.random()*15);
+	b.body.setSize(25, 17, 3, 15);
+
+	b.hits = 1;
+	b.animations.add("idle", [0,1,2,3,4,5,6,7], 5, true);
+	b.animations.play("idle");
+	spawnTimer = game.time.now + 4000;
+}
+function createSkull() {
+	s = skulls.create(game.world.width - 32, game.world.height - 200 - 
+		(Math.random() * 100), "skull");
+	s.body.velocity.x = -10 - (Math.random() * 15);
+	s.body.bounce.y = 1;
+	s.animations.add("idle", [0,1,2,3,4,5,6,70], 5, true);
+	s.animations.play("idle");
+	skullSpawnTimer = game.time.now + 7000;
+}
+function resetSpeed(b) {
+	b.body.velocity.x = -35;
+}
+function killPlayer() {
+	player.kill();
+	score = 0;
+	window.location.reload();
+}
+function swing() {
+	sword = swords.create(player.x, player.y, null);
+	sword.body.setSize(30, 22, 3, 25);
+	
+}
+function killBlob(sword, b) {
+	if (b.hits <1) {
+	b.kill();
+	score += 10;
+	scoreText.text = "Score: " + score;
+	} else {
+		b.body.velocity.y -= 50;
+		b.body.velocity.x += 20;
+		b.hits -= 1;
+	}
+}
+function killSkull(sword, s) {
+	s.kill();
+	score += 25;
+	scoreText.text = "Score: " + score;
+}
+</script>
+</body>
+</html>
